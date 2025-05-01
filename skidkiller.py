@@ -62,7 +62,7 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
 with open(CONFIG_FILE, "r") as f:
     content = f.read()
 
-        try:
+    try:
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(REPO_NAME)
         with open(CONFIG_FILE, "r") as f:
