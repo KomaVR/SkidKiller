@@ -1,7 +1,7 @@
 {
   "ip": "ai-horror-game.vercal.app",
   "method": "http_mutator",
-  "threads": 100,
+  "threads": 10,
   "duration": 3600,
-  "timestamp": "2025-05-01 04:33:47.348554"
+  "timestamp": "2025-05-01T07:25:39.623399"
 }
