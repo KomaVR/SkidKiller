@@ -79,7 +79,7 @@ with open(CONFIG_FILE, "r") as f:
                 content=content,
                 branch=BRANCH
             )
-         else:
+        else:
             raise e
 
 @bot.tree.command(name="help", description="Show all available attack methods")
