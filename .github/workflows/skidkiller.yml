@@ -2,6 +2,9 @@
 name: Skid Killer Swarm
 permissions:
   contents: write
+  workflows: write
+  pull-requests: write
+  actions: write
 
 on:
   push:
@@ -79,3 +82,4 @@ jobs:
         env:
           RUNNER_MODE: 1
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
