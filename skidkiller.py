@@ -9,7 +9,7 @@ import random, time, socket
 from scapy.all import *
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") or os.getenv("GH_PAT")
+GITHUB_TOKEN = os.getenv("GH_PAT")
 REPO_NAME = "KomaVR/SkidKiller"
 BRANCH = "main"
 CONFIG_FILE = "trigger.json"
