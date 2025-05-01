@@ -62,11 +62,11 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
     with open(CONFIG_FILE, "r") as f:
         content = f.read()
 
-            try:
-                g = Github(GITHUB_TOKEN)
-                repo = g.get_repo(REPO_NAME)
-                with open(CONFIG_FILE, "r") as f:
-                    content = f.read()
+        try:
+            g = Github(GITHUB_TOKEN)
+            repo = g.get_repo(REPO_NAME)
+            with open(CONFIG_FILE, "r") as f:
+            content = f.read()
 
             try:
                 contents = repo.get_contents("trigger.json", ref=BRANCH)
@@ -88,12 +88,12 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
                 else:
                     raise inner
 
-            await interaction.response.send_message(
-                f"✅ Target: `{target_ip}` | Method: `{method.value}` | Threads: `{threads}` | Duration: `{duration}`s"
-            )
+        await interaction.response.send_message(
+            f"✅ Target: `{target_ip}` | Method: `{method.value}` | Threads: `{threads}` | Duration: `{duration}`s"
+        )
 
-         except Exception as e:
-            await interaction.response.send_message(f"❌ GitHub push failed: {e}", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ GitHub push failed: {e}", ephemeral=True)
 
 @bot.tree.command(name="help", description="Show all available attack methods")
 async def help_cmd(interaction: discord.Interaction):
