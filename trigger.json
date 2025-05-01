@@ -1,7 +1,7 @@
 {
   "ip": "192.173.173.42",
-  "method": "json_object_injection",
+  "method": "igmp_bomb",
   "threads": 100,
   "duration": 3600,
-  "timestamp": "2025-05-01T08:03:08.203703"
+  "timestamp": "2025-05-01T08:04:05.562735"
 }
