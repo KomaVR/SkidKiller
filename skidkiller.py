@@ -62,7 +62,7 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
 with open(CONFIG_FILE, "r") as f:
     content = f.read()
 
-    try:
+        try:
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(REPO_NAME)
         with open(CONFIG_FILE, "r") as f:
@@ -94,7 +94,6 @@ with open(CONFIG_FILE, "r") as f:
 
     except Exception as e:
         await interaction.response.send_message(f"❌ GitHub push failed: {e}", ephemeral=True)
-
 
 @bot.tree.command(name="help", description="Show all available attack methods")
 async def help_cmd(interaction: discord.Interaction):
