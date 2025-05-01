@@ -3,7 +3,6 @@ name: Auto Run SkidKiller Bot
 permissions:
   contents: write
   workflows: write
-  pull-requests: write
   actions: write
 
 on:
