@@ -1,4 +1,7 @@
+# .github/workflows/auto_skidkiller.yml
 name: Auto Run SkidKiller Bot
+permissions:
+  contents: write
 
 on:
   push:
@@ -29,4 +32,4 @@ jobs:
         run: python skidkiller.py
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
