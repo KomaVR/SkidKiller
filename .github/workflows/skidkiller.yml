@@ -46,7 +46,7 @@ jobs:
       - name: Launch attack A
         env:
           RUNNER_MODE: 1
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
           python skidkiller.py || true
 
