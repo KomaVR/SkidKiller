@@ -1,4 +1,7 @@
+# .github/workflows/skidkiller.yml
 name: Skid Killer Swarm
+permissions:
+  contents: write
 
 on:
   push:
@@ -44,11 +47,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Launch attack A
-        env:
-          RUNNER_MODE: 1
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
           python skidkiller.py || true
+        env:
+          RUNNER_MODE: 1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   execute-b:
     needs: build-matrix
@@ -71,8 +74,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Launch attack B
-        env:
-          RUNNER_MODE: 1
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python skidkiller.py || true
+        env:
+          RUNNER_MODE: 1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
